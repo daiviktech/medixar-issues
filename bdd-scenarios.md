@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-This document contains Gherkin-style Behavior-Driven Development (BDD) scenarios for the critical flows in Medixar HMS Phase 1, 2, and 3. These scenarios serve as executable specifications and can be adapted for Playwright E2E tests or Jest integration tests.
+This document contains Gherkin-style Behavior-Driven Development (BDD) scenarios for the critical flows in Medixar HMS Phases 1–4. These scenarios serve as executable specifications and can be adapted for Playwright E2E tests or Jest integration tests.
 
 ---
 
@@ -1406,4 +1406,361 @@ Feature: Pharmacy Expiry Enforcement (BR-04)
     Then the response status should be 200
     And the dispensing should proceed normally
     And inventory should be deducted accordingly
+```
+
+---
+
+## 21. AI Predictive Analytics
+
+### Feature: No-Show Prediction
+
+```gherkin
+Feature: Appointment No-Show Prediction
+  As a doctor or scheduling staff
+  I want to see no-show risk predictions for appointments
+  So that I can proactively manage scheduling and overbooking
+
+  Background:
+    Given I am logged in as a doctor with "ai:prediction_read" permission
+    And the AI service is available
+
+  Scenario: Successful no-show prediction
+    When I send a POST request to "/api/v1/ai/predict/no-show" with:
+      | appointment_id       | <uuid>       |
+      | patient_age          | 35           |
+      | lead_days            | 7            |
+      | previous_no_shows    | 2            |
+      | previous_visits      | 10           |
+      | hour_of_day          | 14           |
+      | day_of_week          | Monday       |
+      | insurance_type       | private      |
+      | department           | Cardiology   |
+    Then the response status should be 200
+    And the response should contain "probability"
+    And the response "probability" should be between 0.0 and 1.0
+    And the response should contain "risk_level"
+    And the response "risk_level" should be one of "low", "medium", "high"
+    And the response should contain "contributing_factors"
+    And the response should contain "model_version"
+
+  Scenario: High-risk no-show prediction
+    Given a patient with 5 previous no-shows out of 8 visits
+    When I request a no-show prediction for their next appointment
+    Then the response "risk_level" should be "high"
+    And the response "probability" should be greater than 0.5
+    And the response "contributing_factors" should include "previous_no_shows"
+
+  Scenario: No-show prediction without required permission
+    Given I am logged in as a nurse without "ai:prediction_read" permission
+    When I send a POST request to "/api/v1/ai/predict/no-show"
+    Then the response status should be 403
+```
+
+### Feature: Readmission Risk
+
+```gherkin
+Feature: Patient Readmission Risk Prediction
+  As a doctor
+  I want to assess a patient's 30-day readmission risk
+  So that I can plan appropriate follow-up care
+
+  Background:
+    Given I am logged in as a doctor with "ai:prediction_read" permission
+    And the AI service is available
+
+  Scenario: Successful readmission risk prediction
+    When I send a POST request to "/api/v1/ai/predict/readmission" with:
+      | patient_age             | 72          |
+      | gender                  | male        |
+      | primary_diagnosis       | heart_failure |
+      | length_of_stay          | 5           |
+      | num_prior_admissions    | 3           |
+      | num_comorbidities       | 4           |
+      | num_medications         | 8           |
+      | has_surgical_procedure  | false       |
+      | discharge_disposition   | home        |
+    Then the response status should be 200
+    And the response should contain "probability"
+    And the response should contain "risk_level"
+    And the response should contain "risk_factors"
+
+  Scenario: Low-risk readmission prediction for young healthy patient
+    Given a patient aged 25 with 0 prior admissions and 0 comorbidities
+    When I request a readmission risk prediction
+    Then the response "risk_level" should be "low"
+    And the response "probability" should be less than 0.3
+```
+
+### Feature: Length of Stay Prediction
+
+```gherkin
+Feature: Length of Stay Prediction
+  As a bed manager
+  I want to predict how long a patient will stay
+  So that I can plan bed allocation and discharge schedules
+
+  Background:
+    Given I am logged in as a doctor with "ai:prediction_read" permission
+    And the AI service is available
+
+  Scenario: Successful LOS prediction
+    When I send a POST request to "/api/v1/ai/predict/los" with:
+      | patient_age          | 65           |
+      | gender               | female       |
+      | admission_type       | emergency    |
+      | primary_diagnosis    | pneumonia    |
+      | num_comorbidities    | 2            |
+      | num_procedures       | 1            |
+      | is_surgical          | false        |
+    Then the response status should be 200
+    And the response should contain "predicted_days"
+    And the response "predicted_days" should be greater than 0
+    And the response should contain "confidence_interval"
+    And the response "confidence_interval.lower" should be less than "confidence_interval.upper"
+```
+
+### Feature: Bed Demand Forecast
+
+```gherkin
+Feature: Bed Demand Forecast
+  As a bed manager or administrator
+  I want to see predicted bed occupancy for the next 7 days
+  So that I can plan staffing and capacity
+
+  Background:
+    Given I am logged in as a tenant admin with "ai:prediction_read" permission
+    And the AI service is available
+
+  Scenario: Successful 7-day bed demand forecast
+    When I send a POST request to "/api/v1/ai/predict/bed-demand" with:
+      | department              | General     |
+      | current_occupancy       | 45          |
+      | total_beds              | 60          |
+      | forecast_days           | 7           |
+      | avg_daily_admissions    | 8           |
+      | avg_daily_discharges    | 7           |
+    Then the response status should be 200
+    And the response should contain "forecasts"
+    And the response "forecasts" should have 7 entries
+    And each forecast should contain "date", "predicted_occupancy", "lower_bound", "upper_bound"
+    And the response should contain "peak_occupancy"
+```
+
+---
+
+## 22. AI Medical NLP
+
+### Feature: Clinical Text Summarization
+
+```gherkin
+Feature: Clinical Text Summarization
+  As a doctor
+  I want to generate concise summaries of lengthy clinical notes
+  So that I can quickly review patient history
+
+  Background:
+    Given I am logged in as a doctor with "ai:nlp_read" permission
+    And the AI service is available
+
+  Scenario: Successful clinical text summarization
+    When I send a POST request to "/api/v1/ai/summarize" with:
+      | clinical_text | Patient presents with 3-day history of productive cough, fever up to 38.5C, and shortness of breath. Chest X-ray shows right lower lobe consolidation. Started on amoxicillin-clavulanate 875mg BID. |
+      | context       | encounter_note |
+    Then the response status should be 200
+    And the response should contain "summary"
+    And the response "summary" should not be empty
+    And the response should contain "key_findings"
+    And the response "key_findings" should be an array
+
+  Scenario: Summarization without NLP permission
+    Given I am logged in as a radiologist without "ai:nlp_read" permission
+    When I send a POST request to "/api/v1/ai/summarize"
+    Then the response status should be 403
+
+  Scenario: Summarization with empty text
+    When I send a POST request to "/api/v1/ai/summarize" with:
+      | clinical_text | |
+    Then the response status should be 400
+```
+
+### Feature: ICD-10 Code Suggestion
+
+```gherkin
+Feature: ICD-10 Code Suggestion
+  As a doctor or medical coder
+  I want AI-suggested ICD-10 codes based on clinical notes
+  So that I can accurately code diagnoses faster
+
+  Background:
+    Given I am logged in as a doctor with "ai:nlp_read" permission
+    And the AI service is available
+
+  Scenario: Successful ICD code suggestion
+    When I send a POST request to "/api/v1/ai/suggest-icd-codes" with:
+      | clinical_text | Patient diagnosed with type 2 diabetes mellitus with diabetic chronic kidney disease, stage 3. |
+      | max_codes     | 5 |
+    Then the response status should be 200
+    And the response should contain "suggestions"
+    And each suggestion should contain "code", "description", "confidence"
+    And each suggestion "confidence" should be between 0.0 and 1.0
+    And the suggestions should be ordered by confidence descending
+
+  Scenario: Apply suggested ICD code to encounter
+    Given a suggestion with code "E11.22" and description "Type 2 diabetes mellitus with diabetic chronic kidney disease"
+    When I click "Apply" on the ICD suggestion
+    Then the code should be added to the encounter diagnosis list
+    And the clinician should be able to confirm or reject the suggestion
+```
+
+### Feature: Entity Extraction
+
+```gherkin
+Feature: Clinical Entity Extraction
+  As a doctor
+  I want to extract structured medical entities from free-text notes
+  So that clinical data can be categorized and searchable
+
+  Background:
+    Given I am logged in as a doctor with "ai:nlp_read" permission
+    And the AI service is available
+
+  Scenario: Successful entity extraction
+    When I send a POST request to "/api/v1/ai/extract-entities" with:
+      | clinical_text | Patient is taking metformin 1000mg twice daily for diabetes. History of hypertension managed with lisinopril 10mg. Scheduled for colonoscopy next week. |
+    Then the response status should be 200
+    And the response should contain "entities"
+    And the entities should include type "medication" with text "metformin"
+    And the entities should include type "condition" with text "diabetes"
+    And the entities should include type "procedure" with text "colonoscopy"
+    And each entity should contain "text", "type", "span"
+```
+
+### Feature: SOAP Note Structuring
+
+```gherkin
+Feature: SOAP Note Structuring
+  As a doctor
+  I want to convert free-text clinical notes into structured SOAP format
+  So that documentation follows a standardized clinical format
+
+  Background:
+    Given I am logged in as a doctor with "ai:nlp_read" permission
+    And the AI service is available
+
+  Scenario: Successful SOAP structuring
+    When I send a POST request to "/api/v1/ai/structure-soap" with:
+      | clinical_text | Patient reports worsening knee pain for 2 weeks, worse with stairs. On exam, mild swelling of left knee, ROM limited to 100 degrees flexion. X-ray shows mild osteoarthritis. Will start physical therapy and trial of naproxen 500mg BID. Follow-up in 4 weeks. |
+    Then the response status should be 200
+    And the response should contain "subjective"
+    And the response "subjective" should reference patient-reported symptoms
+    And the response should contain "objective"
+    And the response "objective" should reference exam findings
+    And the response should contain "assessment"
+    And the response should contain "plan"
+    And the response "plan" should reference treatment decisions
+
+  Scenario: SOAP structuring displays color-coded sections in UI
+    Given SOAP structuring returns all four sections
+    When the result is rendered in the encounter page
+    Then the Subjective section should have a blue border
+    And the Objective section should have a green border
+    And the Assessment section should have an amber border
+    And the Plan section should have a purple border
+    And an AI disclaimer should be visible
+```
+
+---
+
+## 23. AI Imaging Analysis
+
+### Feature: Radiology Report AI Analysis
+
+```gherkin
+Feature: Radiology Report AI Analysis
+  As a radiologist or ordering physician
+  I want AI-assisted analysis of radiology reports
+  So that I can identify key findings and abnormalities faster
+
+  Background:
+    Given I am logged in as a radiologist with "ai:imaging_analysis" permission
+    And the AI service is available
+
+  Scenario: Successful image analysis from report text
+    When I send a POST request to "/api/v1/ai/analyze-image" with:
+      | report_text          | Frontal chest radiograph demonstrates bilateral perihilar opacities with air bronchograms. Heart size is mildly enlarged. No pleural effusion. No pneumothorax. |
+      | modality             | X-ray   |
+      | body_part            | Chest   |
+      | clinical_indication  | Cough and fever |
+    Then the response status should be 200
+    And the response should contain "findings"
+    And each finding should contain "description", "confidence", "location", "severity"
+    And the response should contain "detected_abnormalities"
+    And the response should contain "recommendations"
+    And the response should contain "overall_impression"
+
+  Scenario: Findings have appropriate severity classification
+    Given the analysis returns findings for a chest X-ray
+    Then each finding "severity" should be one of "normal", "mild", "moderate", "severe"
+    And each finding "confidence" should be between 0.0 and 1.0
+
+  Scenario: AI analysis for different modalities
+    When I request analysis for modality "CT"
+    Then the response should contain modality-appropriate findings
+    When I request analysis for modality "MRI"
+    Then the response should contain modality-appropriate findings
+    When I request analysis for modality "Ultrasound"
+    Then the response should contain modality-appropriate findings
+
+  Scenario: AI analysis without imaging permission
+    Given I am logged in as a nurse without "ai:imaging_analysis" permission
+    When I send a POST request to "/api/v1/ai/analyze-image"
+    Then the response status should be 403
+```
+
+---
+
+## 24. AI Common Behaviors
+
+### Feature: AI Service Mock Fallback
+
+```gherkin
+Feature: AI Service Mock Fallback
+  As a system
+  I want AI endpoints to return realistic mock data when the AI service is unavailable
+  So that the application remains functional in demo and CI environments
+
+  Scenario: NLP endpoint returns mock data when no API key configured
+    Given the ANTHROPIC_API_KEY environment variable is empty
+    When I request a clinical text summarization
+    Then the response status should be 200
+    And the response should contain a realistic mock summary
+    And the mock response should follow the same schema as a real response
+
+  Scenario: Prediction endpoint uses heuristic fallback when no model files exist
+    Given no trained model files exist in the MODEL_DIR
+    When I request a no-show prediction
+    Then the response status should be 200
+    And the response should contain a heuristic-based probability
+    And the response "model_version" should be "mock"
+```
+
+### Feature: AI Disclaimer
+
+```gherkin
+Feature: AI-Generated Content Disclaimer
+  As a clinician
+  I want all AI-generated content to be clearly marked
+  So that I know to review and verify before clinical use
+
+  Scenario: AI disclaimer appears on all AI component outputs
+    Given I have triggered an AI analysis (summary, ICD codes, SOAP, or imaging)
+    When the AI result is displayed in the UI
+    Then an amber disclaimer banner should be visible
+    And the banner should state "AI-Generated Content"
+    And the banner should state "requires clinician review"
+
+  Scenario: AI results are never presented as autonomous diagnoses
+    Given any AI endpoint returns a result
+    Then the result should be presented as "decision support"
+    And the clinician must have the option to accept or reject the suggestion
 ```

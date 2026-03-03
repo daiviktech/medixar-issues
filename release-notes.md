@@ -1,5 +1,70 @@
 # Medixar Release Notes
 
+## v0.4.0 — Phase 4: AI/ML Features (2026-03-03)
+
+Phase 4 adds AI-powered clinical decision support with three capability areas: predictive analytics, medical NLP, and imaging analysis.
+
+---
+
+### AI Services (Python FastAPI Microservice)
+
+- **Predictive Analytics** — scikit-learn models for no-show prediction, readmission risk, length of stay estimation, and bed demand forecasting with mock fallback
+- **Medical NLP** — Claude API integration for clinical text summarization, ICD-10 code suggestion, entity extraction, and SOAP note structuring
+- **Imaging Analysis** — Radiological report analysis with modality-specific findings (X-ray, CT, MRI, Ultrasound) and severity classification
+- 101 Python tests at 90%+ coverage, 80% minimum threshold enforced in CI
+
+### NestJS API Integration
+
+- AI proxy module at `/api/v1/ai/` with 10 endpoints forwarding to FastAPI service
+- Three new RBAC permissions: `ai:prediction_read`, `ai:nlp_read`, `ai:imaging_analysis`
+- Timeout handling (30s), error translation, and service health endpoint
+- 26 new API tests (1,224 total)
+
+### Frontend Components
+
+- 8 React components for AI features (predictions, NLP, imaging, forecasting)
+- React Query hooks for all AI endpoints with loading/error states
+- Color-coded risk badges, SOAP section display, ICD-10 code Apply flow
+- AI disclaimer banner on all AI-generated content
+- 23 new component tests (865 total web tests)
+
+### Infrastructure
+
+- Docker Compose service for AI microservice
+- CI job for Python tests (`test-ai` in GitHub Actions)
+- Model training script (`scripts/train_models.py`) for synthetic data generation
+- New root scripts: `ai:dev`, `ai:test`, `ai:test:cov`
+
+### New AI Endpoints
+
+| Endpoint | Method | Permission | Description |
+|---|---|---|---|
+| `/api/v1/ai/status` | GET | `ai:prediction_read` | Service health check |
+| `/api/v1/ai/predict/no-show` | POST | `ai:prediction_read` | No-show probability |
+| `/api/v1/ai/predict/readmission` | POST | `ai:prediction_read` | 30-day readmission risk |
+| `/api/v1/ai/predict/los` | POST | `ai:prediction_read` | Length of stay estimate |
+| `/api/v1/ai/predict/bed-demand` | POST | `ai:prediction_read` | 7-day bed demand forecast |
+| `/api/v1/ai/summarize` | POST | `ai:nlp_read` | Clinical text summary |
+| `/api/v1/ai/suggest-icd-codes` | POST | `ai:nlp_read` | ICD-10 suggestions |
+| `/api/v1/ai/extract-entities` | POST | `ai:nlp_read` | Entity extraction |
+| `/api/v1/ai/structure-soap` | POST | `ai:nlp_read` | SOAP note structuring |
+| `/api/v1/ai/analyze-image` | POST | `ai:imaging_analysis` | Radiology analysis |
+
+### Architecture Decision
+
+- ADR 007: Hybrid approach — Claude API for NLP/imaging, scikit-learn for predictions
+- CPU-only deployment (no GPU required), mock fallback for CI/demo
+- See `docs/adr/007-ai-architecture.md` and `docs/ai-features.md`
+
+### Test Impact
+
+- Python AI: 101 tests (90%+ coverage)
+- NestJS API: 1,224 tests (+26 new)
+- Frontend: 865 tests (+23 new)
+- Constants: 282 tests (updated permission counts)
+
+---
+
 ## v0.3.2 — QA Bug Fixes (2026-03-03)
 
 This release addresses 8 bugs reported by the QA/BA team during staging testing, spanning Patient Management, Staff, and Appointments modules.
