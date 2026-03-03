@@ -1,0 +1,59 @@
+name: Gap / Missing Feature
+description: Report missing functionality that should exist
+labels: ["gap"]
+body:
+  - type: dropdown
+    id: module
+    attributes:
+      label: Module
+      description: Which module is affected?
+      options:
+        - Login / Auth
+        - Dashboard
+        - Patients
+        - Staff
+        - Departments
+        - Appointments
+        - Billing
+        - Bed Management
+        - Rostering
+        - Radiology
+        - Notifications
+        - Other / New Module
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - Critical (blocks testing/usage)
+        - High (important, needed soon)
+        - Medium (should have, not urgent)
+        - Low (nice to have)
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What is missing?
+      description: Describe the missing functionality
+      placeholder: "There is no way to export patient data to CSV"
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: How does this gap affect usage or testing?
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested solution
+      description: How should this be implemented? (optional)

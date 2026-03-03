@@ -1,0 +1,58 @@
+name: Enhancement
+description: Suggest an improvement to existing functionality
+labels: ["enhancement"]
+body:
+  - type: dropdown
+    id: module
+    attributes:
+      label: Module
+      description: Which module does this apply to?
+      options:
+        - Login / Auth
+        - Dashboard
+        - Patients
+        - Staff
+        - Departments
+        - Appointments
+        - Billing
+        - Bed Management
+        - Rostering
+        - Radiology
+        - Notifications
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - High (important, do soon)
+        - Medium (should do, not urgent)
+        - Low (nice to have)
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What should be improved?
+      description: Describe the enhancement clearly
+      placeholder: "The patient list should allow sorting by date of birth"
+    validations:
+      required: true
+
+  - type: textarea
+    id: current
+    attributes:
+      label: Current behavior
+      description: How does it work now?
+
+  - type: textarea
+    id: desired
+    attributes:
+      label: Desired behavior
+      description: How should it work after the improvement?
+    validations:
+      required: true
