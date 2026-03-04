@@ -1,5 +1,84 @@
 # Medixar Release Notes
 
+## v0.4.1 — BRD Completions & Bug Fixes (2026-03-04)
+
+### Bug Fix
+
+#### Schedule Creation "Request Failed" (Issue #9)
+
+**Root cause:** The schedule creation form used raw text inputs for Staff ID and Department ID, requiring users to type UUIDs manually. Invalid or non-existent UUIDs caused PostgreSQL FK constraint failures, surfacing as a generic "Request Failed" toast with no helpful error message.
+
+**Fix (frontend):** Replaced `<Input>` UUID fields with `<Select>` dropdowns populated from `useStaffList()` and `useDepartments()` hooks, so users pick from existing staff members and departments.
+
+**Fix (backend):** Added explicit `findUnique` checks for `staff_id` and `department_id` in `RosteringService.createSchedule()` before the Prisma insert, returning `404 Not Found` with a clear message ("Staff member not found" / "Department not found") instead of a raw database error.
+
+#### Appointment Cancellation "Request Failed" (Issue #10)
+
+**Root cause:** `UpdateAppointmentDto` did not include a `status` field. The frontend sends `{ status: 'Cancelled', cancellation_reason: '...' }` via `PATCH /appointments/:id`, but class-validator rejected the unknown `status` property, causing a 400 error.
+
+**Fix:** Added a validated `status` field (enum `AppointmentStatus`) to `UpdateAppointmentDto`, allowing status transitions including cancellation.
+
+### Completed BRD Requirements
+
+#### Waitlist Management — FR-APT-04 (Partial → Done)
+
+- Added `GET /api/v1/appointments/waitlist` with department and status filters
+- Added `PATCH /api/v1/appointments/waitlist/:id` to update status, priority, and offered slot
+- 6 new tests for waitlist list/update operations
+
+#### Clinical Templates Admin UI — FR-EMR-07 (Partial → Done)
+
+- New admin page at `/admin/templates` with DataTable listing all clinical templates
+- Create template form (name, specialty, encounter type, sections)
+- Activate/deactivate templates directly from the list
+- Permission-gated for `admin:settings` or `encounter:create` roles
+
+#### Voice-to-SOAP Dictation — FR-EMR-09 (Partial → Done)
+
+- New `VoiceInput` component using Web Speech API (`SpeechRecognition` / `webkitSpeechRecognition`)
+- Integrated into encounter detail page — "Dictate Notes" button captures voice, feeds transcript to `SoapStructurer`
+- Graceful fallback for unsupported browsers (Chrome/Edge required)
+- 3 new component tests with mocked `SpeechRecognition`
+
+### Infrastructure
+
+- Playwright E2E config now supports `STAGING_URL` env var for testing against staging
+- AI service verification script (`infrastructure/staging/verify-ai.mjs`) validates all 10 AI endpoints
+
+### BRD Traceability Summary (v0.4.1)
+
+| Module                     | Done   | Partial | Deferred | Total  |
+| -------------------------- | ------ | ------- | -------- | ------ |
+| Patient Management (FR-PM) | 8      | 0       | 0        | 8      |
+| EMR (FR-EMR)               | 9      | 0       | 0        | 9      |
+| Staff & HR (FR-HR)         | 5      | 0       | 0        | 5      |
+| Rostering (FR-RS)          | 6      | 0       | 0        | 6      |
+| Appointments (FR-APT)      | 5      | 0       | 2        | 7      |
+| Billing (FR-BIL)           | 7      | 0       | 0        | 7      |
+| Pharmacy (FR-PH)           | 5      | 0       | 0        | 5      |
+| Laboratory (FR-LAB)        | 6      | 0       | 0        | 6      |
+| Radiology (FR-RAD)         | 6      | 0       | 0        | 6      |
+| Bed Management (FR-BED)    | 5      | 0       | 0        | 5      |
+| Documents (FR-DOC)         | 3      | 0       | 2        | 5      |
+| Notifications (FR-NOT)     | 2      | 1       | 1        | 4      |
+| Business Rules (BR)        | 10     | 0       | 0        | 10     |
+| AI/ML (FR-AI)              | 10     | 0       | 0        | 10     |
+| **Totals**                 | **87** | **1**   | **5**    | **93** |
+
+**Changes from v0.3.0:** FR-APT-04 (waitlist), FR-EMR-07 (clinical templates admin), FR-EMR-09 (voice-to-SOAP) moved from partial to done. 10 new AI/ML requirements added and completed.
+
+**Remaining partial:** FR-NOT-01 (email/SMS/push delivery — in-app channel done, external channels await SendGrid/Twilio/FCM API keys).
+
+**Deferred items (5):**
+
+1. FR-APT-03 — Appointment change notifications via SMS/email (blocked on external delivery)
+2. FR-APT-05 — Teleconsultation video integration (blocked on video service API)
+3. FR-DOC-03 — OCR document processing (blocked on Google Vision/AWS Textract)
+4. FR-DOC-04 — Configurable document retention policies
+5. FR-NOT-01 — External notification delivery channels (Twilio/SendGrid/FCM)
+
+---
+
 ## v0.4.0 — Phase 4: AI/ML Features (2026-03-03)
 
 Phase 4 adds AI-powered clinical decision support with three capability areas: predictive analytics, medical NLP, and imaging analysis.
@@ -34,34 +113,6 @@ Phase 4 adds AI-powered clinical decision support with three capability areas: p
 - CI job for Python tests (`test-ai` in GitHub Actions)
 - Model training script (`scripts/train_models.py`) for synthetic data generation
 - New root scripts: `ai:dev`, `ai:test`, `ai:test:cov`
-
-### New AI Endpoints
-
-| Endpoint | Method | Permission | Description |
-|---|---|---|---|
-| `/api/v1/ai/status` | GET | `ai:prediction_read` | Service health check |
-| `/api/v1/ai/predict/no-show` | POST | `ai:prediction_read` | No-show probability |
-| `/api/v1/ai/predict/readmission` | POST | `ai:prediction_read` | 30-day readmission risk |
-| `/api/v1/ai/predict/los` | POST | `ai:prediction_read` | Length of stay estimate |
-| `/api/v1/ai/predict/bed-demand` | POST | `ai:prediction_read` | 7-day bed demand forecast |
-| `/api/v1/ai/summarize` | POST | `ai:nlp_read` | Clinical text summary |
-| `/api/v1/ai/suggest-icd-codes` | POST | `ai:nlp_read` | ICD-10 suggestions |
-| `/api/v1/ai/extract-entities` | POST | `ai:nlp_read` | Entity extraction |
-| `/api/v1/ai/structure-soap` | POST | `ai:nlp_read` | SOAP note structuring |
-| `/api/v1/ai/analyze-image` | POST | `ai:imaging_analysis` | Radiology analysis |
-
-### Architecture Decision
-
-- ADR 007: Hybrid approach — Claude API for NLP/imaging, scikit-learn for predictions
-- CPU-only deployment (no GPU required), mock fallback for CI/demo
-- See `docs/adr/007-ai-architecture.md` and `docs/ai-features.md`
-
-### Test Impact
-
-- Python AI: 101 tests (90%+ coverage)
-- NestJS API: 1,224 tests (+26 new)
-- Frontend: 865 tests (+23 new)
-- Constants: 282 tests (updated permission counts)
 
 ---
 
@@ -344,9 +395,9 @@ Phase 3 delivers enterprise-grade operational modules — rostering, bed managem
 | Documents (FR-DOC)         | 2      | 1       | 2        | 0       | 5      |
 | Notifications (FR-NOT)     | 2      | 1       | 1        | 0       | 4      |
 | Business Rules (BR)        | 10     | 0       | 0        | 0       | 10     |
-| **Totals**                 | **77** | **4**   | **6**    | **0**   | **87** |
+| **Totals**                 | **77** | **5**   | **6**    | **0**   | **88** |
 
-**Phase 1-3 requirements: 100% addressed** (77 done + 4 partial + 6 deferred out of 87 total BRD items). Zero pending items remain. Updated in v0.3.1: FR-RAD-02, FR-RAD-05, FR-BIL-04, and FR-RS-02 moved from deferred/partial to done.
+**Phase 1-3 requirements: 100% addressed** (77 done + 5 partial + 6 deferred out of 88 total BRD items). Zero pending items remain. Updated in v0.3.1: FR-RAD-02, FR-RAD-05, FR-BIL-04, and FR-RS-02 moved from deferred/partial to done.
 
 ---
 
@@ -371,7 +422,6 @@ These features have backend interfaces and frontend hooks implemented but requir
 
 **Phase 4 — AI/ML (Months 10-12):**
 
-- AI-assisted voice-to-SOAP transcription (FR-EMR-09)
 - Real AI model integration for radiology analysis (FR-RAD-05 — mock implemented in v0.3.1, real ML model pending)
 - Constraint satisfaction roster optimizer (FR-RS-02 — scored algorithm in v0.3.1, CSP solver pending)
 - Real PACS server integration (FR-RAD-02 — mock implemented in v0.3.1, Orthanc/dcm4chee pending)
@@ -429,7 +479,7 @@ Phase 2 delivers the complete clinical workflow — from patient registration th
 
 - Appointment booking with slot validation and double-booking prevention (`FR-APT-01`)
 - Multi-provider, multi-location slot management (`FR-APT-02`)
-- Waitlist entry storage (`FR-APT-04` — partial)
+- Waitlist management with list, filter, and update (`FR-APT-04`)
 - Recurring appointments with series management (`FR-APT-07`)
 - Calendar view with month/week toggle, color-coded by status
 - Telehealth flag with manual video call URL (`FR-APT-05` — deferred)
@@ -559,7 +609,6 @@ These features have backend interfaces and frontend hooks implemented but requir
 
 **Phase 4 — AI/ML (Months 10-12):**
 
-- AI-assisted voice-to-SOAP transcription (FR-EMR-09)
 - AI-assisted image analysis (FR-RAD-05)
 
 **Phase 5 — Patient Portal:**
