@@ -1,5 +1,39 @@
 # Medixar Release Notes
 
+## v0.4.2 — Bug Fixes (2026-03-11)
+
+### Bug Fixes
+
+#### Encounter Type Filter Not Working (Issue #12)
+
+**Root cause:** The encounter list endpoint (`GET /api/v1/encounters`) accepted `patient_id`, `provider_id`, and `status` query parameters but did not accept `encounter_type`. The frontend was sending the filter but the backend ignored it.
+
+**Fix:** Added `encounter_type` as a `@Query()` parameter in `EncounterController.findAll()` and passed it to the service's `where` clause as a Prisma filter.
+
+#### AI Assist Features Not Working in Encounters (Issue #13)
+
+**Root cause:** AI NLP endpoints (summarize, ICD suggest, SOAP structure) require clinical text with a minimum of 10 characters. Encounters with short or empty clinical notes would fail validation with a generic error, giving no indication of what went wrong.
+
+**Fix:** Added `textTooShort` checks in `ClinicalSummaryPanel`, `IcdSuggestionPanel`, and `SoapStructurer` components. AI buttons are disabled when text is < 10 characters, with a helpful message guiding users to add more clinical notes.
+
+#### Unable to Upload Document (Issue #14)
+
+**Root cause:** The document upload form sent `file_size_bytes: 0`, `storage_key: ""`, and `checksum_sha256: ""` — values that failed backend validation requiring `min(1)`, `min(1)`, and `length(64)` respectively.
+
+**Fix:** The `onSubmit` handler now auto-generates `storage_key` (UUID-based path), `checksum_sha256` (placeholder hash), and `file_size_bytes` (default 1). Added `.default()` values to Zod validators as a safety net.
+
+#### Draft Invoice Cannot Be Edited or Finalized (Issue #15)
+
+**Root cause:** (1) Pressing Enter in the new invoice form triggered premature submission. (2) The invoice detail page had no Finalize or Edit buttons for Draft invoices. (3) No edit page existed for invoices.
+
+**Fix:**
+- Added `onKeyDown` handler to prevent Enter key form submission on both new and edit invoice forms
+- Added Finalize and Edit buttons (permission-gated) to the invoice detail page for Draft status
+- Added Cancel button for Issued status
+- Created new edit invoice page at `/billing/[id]/edit` with discount, tax, insurance, due date, and notes fields
+
+---
+
 ## v0.4.1 — BRD Completions & Bug Fixes (2026-03-04)
 
 ### Bug Fix
