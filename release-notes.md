@@ -1,5 +1,32 @@
 # Medixar Release Notes
 
+## v0.5.0 — UI Design Overhaul (2026-03-12)
+
+### Summary
+
+Complete visual overhaul of the Medixar web application to professional enterprise healthcare standards.
+
+### Key Changes
+
+- **Typography**: Switched to Inter font family from Google Fonts
+- **Color System**: Warmer primary blue (#2563EB), new success/warning/info semantic colors, clinical status colors (purple for Discharged, blue for Scheduled)
+- **Dark Sidebar**: Navigation sidebar changed to dark navy theme with white text and blue active indicators
+- **Shadows & Depth**: Cards, buttons, and modals now have shadow elevation for professional depth
+- **Modal Animations**: Scale + fade animation on open/close
+- **Login Page**: Branded with Medixar logo, gradient background, shadow card
+- **Header**: User avatar initials circle, subtle shadow, cleaner layout
+- **Dashboard**: Color-coded stat card borders (blue for patients, green for appointments, purple for staff, etc.)
+- **Form Inputs**: Consistent focus ring styling with primary blue glow across all pages
+- **Data Tables**: Polished slate header with uppercase tracking, blue-tinted row hover
+
+### Test Impact
+
+- 980 tests passing, zero lint errors
+- No API or backend changes
+- No breaking changes to component APIs
+
+---
+
 ## v0.4.3 — Bug Fixes & Enhancements (2026-03-12)
 
 ### Bug Fixes
