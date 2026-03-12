@@ -1,5 +1,33 @@
 # Medixar Release Notes
 
+## v0.4.3 — Bug Fixes & Enhancements (2026-03-12)
+
+### Bug Fixes
+
+#### Ward Department Selector (Issue #16)
+
+**Root cause:** The "Add Ward" form in Bed Management displayed a raw text input for Department ID, requiring users to manually enter UUIDs.
+
+**Fix:** Replaced the text input with a `<select>` dropdown populated from `useDepartments()`, matching the pattern used in staff and department forms.
+
+#### Invoice Creation "Request Failed" (Issue #17)
+
+**Root cause:** The `apiClient.ts` error handler read `errorData.message` (top-level), but the API's `GlobalExceptionFilter` returns errors as `{ error: { message: "..." } }`. Since `errorData.message` was always undefined, every error showed "Request failed" regardless of the actual cause.
+
+**Fix:** Updated error extraction to check `errorData.message || errorData.error?.message || errorData.error?.details`, so users now see the actual validation error or server message.
+
+### Enhancements
+
+#### Treating Consultant on Invoice (Issue #18)
+
+Added a "Provider" search field to the invoice creation form using the existing `ProviderSearch` component. The selected consultant is automatically propagated as `provider_id` to all line items, leveraging the existing `provider_id` column on the `invoice_items` table.
+
+#### Auto-Populate Department from Doctor (Issue #19)
+
+When booking an appointment, selecting a doctor now automatically fills the Department field based on the doctor's `department_id`. The department dropdown remains editable if the user needs to override it.
+
+---
+
 ## v0.4.2 — Bug Fixes (2026-03-11)
 
 ### Bug Fixes
